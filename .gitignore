@@ -5,10 +5,10 @@ __pycache__/
 
 # C extensions
 *.so
+*.c
 
 # Distribution / packaging
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -20,15 +20,16 @@ lib64/
 parts/
 sdist/
 var/
-
-# images
-images_test/
-vis/
-*.png
-
+wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+
+# images
+vis/
+weights/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -43,13 +44,15 @@ pip-delete-this-directory.txt
 # Unit test / coverage reports
 htmlcov/
 .tox/
+.nox/
 .coverage
 .coverage.*
 .cache
 nosetests.xml
 coverage.xml
-*,cover
+*.cover
 .hypothesis/
+.pytest_cache/
 
 # Translations
 *.mo
@@ -58,6 +61,7 @@ coverage.xml
 # Django stuff:
 *.log
 local_settings.py
+db.sqlite3
 
 # Flask stuff:
 instance/
@@ -72,8 +76,12 @@ docs/_build/
 # PyBuilder
 target/
 
-# IPython Notebook
+# Jupyter Notebook
 .ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
 
 # pyenv
 .python-version
@@ -81,54 +89,36 @@ target/
 # celery beat schedule file
 celerybeat-schedule
 
-# dotenv
-.env
+# SageMath parsed files
+*.sage.py
 
-# virtualenv
+# Environments
+.env
+.venv
+env/
 venv/
 ENV/
+env.bak/
+venv.bak/
 
 # Spyder project settings
 .spyderproject
+.spyproject
 
 # Rope project settings
 .ropeproject
 
-# atom remote-sync package
-.remote-sync.json
+# mkdocs documentation
+/site
 
-# weights
-weights/
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
-#DS_Store
-.DS_Store
+# Pyre type checker
+.pyre/
 
-# dev stuff
-eval/
-eval.ipynb
-dev.ipynb
-.vscode/
-
-# not ready
-videos/
-templates/
-data/ssd_dataloader.py
-data/datasets/
-doc/visualize.py
-read_results.py
-ssd300_120000/
-demos/live
-webdemo.py
-test_data_aug.py
-
-# attributes
-
-# pycharm
-.idea/
-
-# temp checkout soln
-data/datasets/
-data/ssd_dataloader.py
-
-# pylint
-.pylintrc
+*.txt
+.idea
+11.py
