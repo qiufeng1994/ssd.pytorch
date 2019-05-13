@@ -20,6 +20,12 @@ lib64/
 parts/
 sdist/
 var/
+
+# images
+images_test/
+vis/
+*.png
+
 *.egg-info/
 .installed.cfg
 *.egg
