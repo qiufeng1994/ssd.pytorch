@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 import cv2
 import numpy as np
 
-COCO_ROOT = osp.join(HOME, 'data/coco/')
+COCO_ROOT = osp.join(HOME, '/Data/coco/')
 IMAGES = 'images'
 ANNOTATIONS = 'annotations'
 COCO_API = 'PythonAPI'
@@ -44,8 +44,10 @@ class COCOAnnotationTransform(object):
     Initilized with a dictionary lookup of classnames to indexes
     """
     def __init__(self):
-        self.label_map = get_label_map(osp.join(COCO_ROOT, 'coco_labels.txt'))
-
+        try:
+            self.label_map = get_label_map(osp.join('./data/', 'coco_labels.txt'))
+        except:
+            print('coco annotation error.No such file or directory: {}'.format(osp.join('./data/', 'coco_labels.txt')))
     def __call__(self, target, width, height):
         """
         Args:
@@ -178,3 +180,6 @@ class COCODetection(data.Dataset):
         tmp = '    Target Transforms (if any): '
         fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
         return fmt_str
+
+if __name__ == '__main__':
+    print(1)

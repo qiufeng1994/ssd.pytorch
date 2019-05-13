@@ -11,6 +11,10 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 from data import VOC_ROOT, VOCAnnotationTransform, VOCDetection, BaseTransform
 from data import VOC_CLASSES as labelmap
+from data import *
+from data import LISA_CLASSES as labelmap_lisa
+
+
 import torch.utils.data as data
 
 from ssd import build_ssd
@@ -36,18 +40,22 @@ def str2bool(v):
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Evaluation')
 parser.add_argument('--trained_model',
-                    default='weights/ssd300_mAP_77.43_v2.pth', type=str,
+                    default='weights/ssd300_RHD_75000.pth', type=str,
                     help='Trained state_dict file path to open')
 parser.add_argument('--save_folder', default='eval/', type=str,
                     help='File path to save results')
-parser.add_argument('--confidence_threshold', default=0.01, type=float,
+parser.add_argument('--confidence_threshold', default=0.2, type=float,
                     help='Detection confidence threshold')
 parser.add_argument('--top_k', default=5, type=int,
                     help='Further restrict the number of predictions to parse')
-parser.add_argument('--cuda', default=True, type=str2bool,
+parser.add_argument('--cuda', default=False, type=str2bool,
                     help='Use cuda to train model')
 parser.add_argument('--voc_root', default=VOC_ROOT,
                     help='Location of VOC root directory')
+parser.add_argument('--coco_root', default=COCO_ROOT,
+                    help='Location of COCO root directory')
+parser.add_argument('--lisa_root', default=LISA_ROOT,
+                    help='Location of LISA root directory')
 parser.add_argument('--cleanup', default=True, type=str2bool,
                     help='Cleanup and remove results files following eval')
 
@@ -361,14 +369,48 @@ cachedir: Directory for caching the annotations
     return rec, prec, ap
 
 
+def vis_boxes(image, h, w, result, tresh, idx, gt):
+    # image = cv2.resize(np.array(im).transpose((1,2,0)),(h,w))
+    for i_gt, box_gt in enumerate(gt):
+
+        cv2.rectangle(image,
+                      # (int(box_gt[1] * w), int(box_gt[0]* h)),
+                      # (int(box_gt[3]* w), int(box_gt[2]* h)),
+                      (int(box_gt[0] * h),int(box_gt[1] * w)),
+                      (int(box_gt[2] * h),int(box_gt[3] * w)),
+                      COLORS[1], 2,
+                      )
+
+    for i, cls in enumerate(result):
+        if cls == []:
+            continue
+        for j, box in enumerate(cls):
+            if box == [] or box[-1] < tresh \
+                    or abs(box[2]-box[0]) < 0.05 or abs(box[3]-box[1]) < 0.05:
+                continue
+            cv2.rectangle(image,
+                          (int(box[0] * h), int(box[1] * w)),
+                          (int(box[2] * h), int(box[3] * w)),
+                          COLORS[0], 2
+                          )
+            cv2.putText(image, str(box[-1]), (int(box[0] * h), int(box[1] * w)),
+                        color=COLORS[2], thickness=1, fontScale=0.6,
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX
+                        )
+    filename = '/Outputs/ssd.pytorch/vis/{:06d}.png'.format(idx)
+    cv2.imwrite(filename, image)
+    print('res saving to {}'.format(filename))
+
+
 def test_net(save_folder, net, cuda, dataset, transform, top_k,
              im_size=300, thresh=0.05):
     num_images = len(dataset)
+    print('total images for evaluation: {}'.format(num_images))
     # all detections are collected into:
     #    all_boxes[cls][image] = N x 5 array of detections in
     #    (x1, y1, x2, y2, score)
     all_boxes = [[[] for _ in range(num_images)]
-                 for _ in range(len(labelmap)+1)]
+                 for _ in range(2)]
 
     # timers
     _t = {'im_detect': Timer(), 'misc': Timer()}
@@ -376,7 +418,7 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
     det_file = os.path.join(output_dir, 'detections.pkl')
 
     for i in range(num_images):
-        im, gt, h, w = dataset.pull_item(i)
+        im, gt, h, w, image_ori = dataset.pull_item(i)
 
         x = Variable(im.unsqueeze(0))
         if args.cuda:
@@ -393,42 +435,46 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
             if dets.size(0) == 0:
                 continue
             boxes = dets[:, 1:]
-            boxes[:, 0] *= w
-            boxes[:, 2] *= w
-            boxes[:, 1] *= h
-            boxes[:, 3] *= h
+            # boxes[:, 0] *= w
+            # boxes[:, 2] *= w
+            # boxes[:, 1] *= h
+            # boxes[:, 3] *= h
             scores = dets[:, 0].cpu().numpy()
             cls_dets = np.hstack((boxes.cpu().numpy(),
                                   scores[:, np.newaxis])).astype(np.float32,
                                                                  copy=False)
             all_boxes[j][i] = cls_dets
-
+        res = [l[i] for l in all_boxes]
+        vis_boxes(image_ori, h, w, res,thresh ,i ,gt)
         print('im_detect: {:d}/{:d} {:.3f}s'.format(i + 1,
                                                     num_images, detect_time))
 
-    with open(det_file, 'wb') as f:
-        pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
-
+    # with open(det_file, 'wb') as f:
+    #     pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
+    
     print('Evaluating detections')
-    evaluate_detections(all_boxes, output_dir, dataset)
-
+    # evaluate_detections(all_boxes, output_dir, dataset)
 
 def evaluate_detections(box_list, output_dir, dataset):
+    
     write_voc_results_file(box_list, dataset)
     do_python_eval(output_dir)
 
 
 if __name__ == '__main__':
     # load net
-    num_classes = len(labelmap) + 1                      # +1 for background
-    net = build_ssd('test', 300, num_classes)            # initialize SSD
-    net.load_state_dict(torch.load(args.trained_model))
+    # num_classes = len(labelmap_lisa) + 1                      # +1 for background
+
+    
+    net = build_ssd('test', 300, 2)            # initialize SSD
+    net.load_state_dict(torch.load(args.trained_model,'cpu'))
     net.eval()
     print('Finished loading model!')
     # load data
-    dataset = VOCDetection(args.voc_root, [('2007', set_type)],
-                           BaseTransform(300, dataset_mean),
-                           VOCAnnotationTransform())
+    dataset = LISA(args.lisa_root,
+                   train=False,
+                   transform=BaseTransform(300, dataset_mean),
+                           )
     if args.cuda:
         net = net.cuda()
         cudnn.benchmark = True

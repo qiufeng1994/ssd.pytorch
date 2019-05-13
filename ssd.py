@@ -46,7 +46,8 @@ class SSD(nn.Module):
         if phase == 'test':
             self.softmax = nn.Softmax(dim=-1)
             self.detect = Detect(num_classes, 0, 200, 0.01, 0.45)
-
+        # for resume
+        self.fc_new = torch.nn.Linear(201, 2)
     def forward(self, x):
         """Applies network layers and ops on input image(s) x.
 
@@ -102,12 +103,20 @@ class SSD(nn.Module):
                              self.num_classes)),                # conf preds
                 self.priors.type(type(x.data))                  # default boxes
             )
-        else:
+        elif self.phase == "train":
             output = (
                 loc.view(loc.size(0), -1, 4),
                 conf.view(conf.size(0), -1, self.num_classes),
                 self.priors
             )
+        else:
+            output = (
+                loc.view(loc.size(0), -1, 4),
+                self.fc_new(conf).view(conf.size(0), -1, self.num_classes),
+                self.priors
+            )
+            
+        
         return output
 
     def load_weights(self, base_file):
@@ -196,7 +205,7 @@ mbox = {
 
 
 def build_ssd(phase, size=300, num_classes=21):
-    if phase != "test" and phase != "train":
+    if phase != "test" and phase != "train" and phase != 'resume':
         print("ERROR: Phase: " + phase + " not recognized")
         return
     if size != 300:
@@ -207,3 +216,12 @@ def build_ssd(phase, size=300, num_classes=21):
                                      add_extras(extras[str(size)], 1024),
                                      mbox[str(size)], num_classes)
     return SSD(phase, size, base_, extras_, head_, num_classes)
+
+if __name__ == '__main__':
+    x = torch.randn((8,3,300, 300))
+
+    ssd_net = build_ssd('train', 300, 21)
+    net = ssd_net
+    print(net)
+    out = net(x)
+    print(1)
